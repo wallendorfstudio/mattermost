@@ -151,6 +151,19 @@ func TestGetClientConfig(t *testing.T) {
 			},
 		},
 		{
+			"enable UseAnonymousURLs prop",
+			&model.Config{
+				PrivacySettings: model.PrivacySettings{
+					UseAnonymousURLs: model.NewPointer(true),
+				},
+			},
+			"tag1",
+			nil,
+			map[string]string{
+				"UseAnonymousURLs": "true",
+			},
+		},
+		{
 			"Custom groups professional license",
 			&model.Config{},
 			"",
@@ -419,6 +432,22 @@ func TestGetClientConfig(t *testing.T) {
 			},
 		},
 		{
+			"mobile watermark uses experimental settings",
+			&model.Config{
+				ExperimentalSettings: model.ExperimentalSettings{
+					EnableWatermark: model.NewPointer(true),
+				},
+			},
+			"",
+			&model.License{
+				Features:     &model.Features{},
+				SkuShortName: model.LicenseShortSkuEnterprise,
+			},
+			map[string]string{
+				"ExperimentalEnableWatermark": "true",
+			},
+		},
+		{
 			"Intune MAM enabled with Enterprise Advanced license and Office365 AuthService",
 			&model.Config{
 				IntuneSettings: model.IntuneSettings{
@@ -658,6 +687,22 @@ func TestGetLimitedClientConfig(t *testing.T) {
 			nil,
 			map[string]string{
 				"FeatureFlagTestFeature": "myvalue",
+			},
+		},
+		{
+			"limited config mobile watermark uses experimental settings",
+			&model.Config{
+				ExperimentalSettings: model.ExperimentalSettings{
+					EnableWatermark: model.NewPointer(true),
+				},
+			},
+			"",
+			&model.License{
+				Features:     &model.Features{},
+				SkuShortName: model.LicenseShortSkuEnterprise,
+			},
+			map[string]string{
+				"ExperimentalEnableWatermark": "true",
 			},
 		},
 	}

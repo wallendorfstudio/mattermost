@@ -69,6 +69,10 @@ type FeatureFlags struct {
 
 	AttributeBasedAccessControl bool
 
+	// Enable permission policies (file upload/download ABAC policies).
+	// Requires AttributeBasedAccessControl to also be enabled.
+	PermissionPolicies bool
+
 	ContentFlagging bool
 
 	// Enable AppsForm for Interactive Dialogs instead of legacy dialog implementation
@@ -93,6 +97,16 @@ type FeatureFlags struct {
 
 	// FEATURE_FLAG_REMOVAL: EnableAIRecaps - Remove this when GA is released
 	EnableAIRecaps bool
+
+	// FEATURE_FLAG_REMOVAL: IntegratedBoards - Remove this when GA is released
+	// Enable the Integrated Boards feature within Mattermost channels
+	IntegratedBoards bool
+
+	// Enable LIKE-based CJK (Chinese, Japanese, Korean) search for PostgreSQL
+	CJKSearch bool
+
+	// ManagedChannelCategories enables server-side managed sidebar category enforcement (Enterprise).
+	ManagedChannelCategories bool
 }
 
 func (f *FeatureFlags) SetDefaults() {
@@ -121,6 +135,7 @@ func (f *FeatureFlags) SetDefaults() {
 	f.ExperimentalAuditSettingsSystemConsoleUI = true
 	f.CustomProfileAttributes = true
 	f.AttributeBasedAccessControl = true
+	f.PermissionPolicies = false
 	f.ContentFlagging = true
 	f.InteractiveDialogAppsForm = true
 	f.EnableMattermostEntry = true
@@ -136,6 +151,12 @@ func (f *FeatureFlags) SetDefaults() {
 	f.EnableAIPluginBridge = false
 
 	f.EnableAIRecaps = false
+
+	f.IntegratedBoards = false
+
+	f.CJKSearch = false
+
+	f.ManagedChannelCategories = false
 }
 
 // ToMap returns the feature flags as a map[string]string

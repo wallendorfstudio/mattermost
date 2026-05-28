@@ -1678,7 +1678,7 @@ func (s SqlChannelStore) SaveMember(rctx request.CTX, member *model.ChannelMembe
 	return newMembers[0], nil
 }
 
-func (s SqlChannelStore) saveMultipleMembers(members []*model.ChannelMember) ([]*model.ChannelMember, error) {
+func (s SqlChannelStore) saveMultipleMembers(members []*model.ChannelMember) (_ []*model.ChannelMember, err error) {
 	newChannelMembers := map[string]int{}
 	users := map[string]bool{}
 	for _, member := range members {
@@ -1777,21 +1777,28 @@ func (s SqlChannelStore) saveMultipleMembers(members []*model.ChannelMember) ([]
 		defaultTeamRolesByChannel[defaultRoles.Id] = defaultRoles
 	}
 
-	query := s.getQueryBuilder().Insert("ChannelMembers").Columns(channelMemberSliceColumns()...)
-	for _, member := range members {
-		query = query.Values(channelMemberToSlice(member)...)
-	}
-
-	sql, args, err := query.ToSql()
+	transaction, err := s.GetMaster().Beginx()
 	if err != nil {
-		return nil, errors.Wrap(err, "channel_members_tosql")
+		return nil, errors.Wrap(err, "begin_transaction")
+	}
+	defer finalizeTransactionX(transaction, &err)
+
+	chunks := chunkSlice(members, len(channelMemberSliceColumns()), s.SqlStore.getMaxInsertParams())
+	for _, chunk := range chunks {
+		query := s.getQueryBuilder().Insert("ChannelMembers").Columns(channelMemberSliceColumns()...)
+		for _, member := range chunk {
+			query = query.Values(channelMemberToSlice(member)...)
+		}
+		if _, execErr := transaction.ExecBuilder(query); execErr != nil {
+			if IsUniqueConstraintError(execErr, []string{"ChannelId", "channelmembers_pkey", "PRIMARY"}) {
+				return nil, store.NewErrConflict("ChannelMembers", execErr, "")
+			}
+			return nil, errors.Wrap(execErr, "channel_members_save")
+		}
 	}
 
-	if _, err := s.GetMaster().Exec(sql, args...); err != nil {
-		if IsUniqueConstraintError(err, []string{"ChannelId", "channelmembers_pkey", "PRIMARY"}) {
-			return nil, store.NewErrConflict("ChannelMembers", err, "")
-		}
-		return nil, errors.Wrap(err, "channel_members_save")
+	if err = transaction.Commit(); err != nil {
+		return nil, errors.Wrap(err, "commit_transaction")
 	}
 
 	newMembers := []*model.ChannelMember{}
@@ -3036,9 +3043,7 @@ func (s SqlChannelStore) Autocomplete(rctx request.CTX, userID, term string, inc
 			sq.Expr("c.TeamId = t.id"),
 			sq.Expr("t.id = tm.TeamId"),
 			sq.Eq{"tm.UserId": userID},
-		}).
-		OrderBy("c.DisplayName").
-		Limit(model.ChannelSearchDefaultLimit)
+		})
 
 	// Always filter out soft-deleted team memberships - users removed from
 	// a team should not see channels from that team regardless of includeDeleted
@@ -3069,6 +3074,10 @@ func (s SqlChannelStore) Autocomplete(rctx request.CTX, userID, term string, inc
 		query = query.Where(searchClause)
 	}
 
+	query = orderByDisplayNameMatch(query, term)
+
+	query = query.Limit(model.ChannelSearchDefaultLimit)
+
 	sql, args, err := query.ToSql()
 	if err != nil {
 		return nil, errors.Wrap(err, "Autocomplete_Tosql")
@@ -3082,36 +3091,55 @@ func (s SqlChannelStore) Autocomplete(rctx request.CTX, userID, term string, inc
 	return channels, nil
 }
 
-func (s SqlChannelStore) AutocompleteInTeam(rctx request.CTX, teamID, userID, term string, includeDeleted, isGuest bool) (model.ChannelList, error) {
+// buildAutocompleteInTeamQuery constructs the base channel autocomplete query scoped to a team
+// and the calling user's visibility (membership-gated for private channels and guests).
+// Callers can apply additional filters before executing via performSearch.
+func (s SqlChannelStore) buildAutocompleteInTeamQuery(teamID, userID, term string, includeDeleted, isGuest bool) sq.SelectBuilder {
 	query := s.getQueryBuilder().Select(channelSliceColumns(true, "c")...).
 		From("Channels c").
 		Where(sq.Eq{"c.TeamId": teamID}).
-		OrderBy("c.DisplayName").
 		Limit(model.ChannelSearchDefaultLimit)
 
 	if !includeDeleted {
 		query = query.Where(sq.Eq{"c.DeleteAt": 0})
 	}
 
+	memberSubQuery := sq.Select("ChannelId").From("ChannelMembers").Where(sq.Eq{"UserId": userID})
 	if isGuest {
-		query = query.Where(sq.Expr("c.Id IN (?)", sq.Select("ChannelId").
-			From("ChannelMembers").
-			Where(sq.Eq{"UserId": userID})))
+		query = query.Where(sq.Expr("c.Id IN (?)", memberSubQuery))
 	} else {
 		query = query.Where(sq.Or{
 			sq.NotEq{"c.Type": model.ChannelTypePrivate},
 			sq.And{
 				sq.Eq{"c.Type": model.ChannelTypePrivate},
-				sq.Expr("c.Id IN (?)", sq.Select("ChannelId").
-					From("ChannelMembers").
-					Where(sq.Eq{"UserId": userID})),
+				sq.Expr("c.Id IN (?)", memberSubQuery),
 			},
 		})
 	}
 
-	searchClause := s.searchClause(term)
-	if searchClause != nil {
+	if searchClause := s.searchClause(term); searchClause != nil {
 		query = query.Where(searchClause)
+	}
+
+	return orderByDisplayNameMatch(query, term)
+}
+
+func (s SqlChannelStore) AutocompleteInTeam(rctx request.CTX, teamID, userID, term string, includeDeleted, isGuest bool) (model.ChannelList, error) {
+	return s.performSearch(s.buildAutocompleteInTeamQuery(teamID, userID, term, includeDeleted, isGuest), term)
+}
+
+func (s SqlChannelStore) AutocompleteInTeamFiltered(rctx request.CTX, teamID, userID, term string, includeDeleted, isGuest, privateOnly, excludeGroupConstrained bool) (model.ChannelList, error) {
+	query := s.buildAutocompleteInTeamQuery(teamID, userID, term, includeDeleted, isGuest)
+
+	if privateOnly {
+		// Membership check already in base query; narrow further to private type only.
+		query = query.Where(sq.Eq{"c.Type": model.ChannelTypePrivate})
+		// Shared channels (Shared = true) are ineligible for team-scoped access-control
+		query = query.Where(sq.Or{sq.Eq{"c.Shared": nil}, sq.Eq{"c.Shared": false}})
+	}
+
+	if excludeGroupConstrained {
+		query = query.Where(sq.Or{sq.Eq{"c.GroupConstrained": false}, sq.Eq{"c.GroupConstrained": nil}})
 	}
 
 	return s.performSearch(query, term)
@@ -3581,6 +3609,18 @@ func (s SqlChannelStore) searchClause(term string) sq.Sqlizer {
 		likeClause,
 		s.buildFulltextClause(term, "c.Name", "c.DisplayName", "c.Purpose"),
 	}
+}
+
+// orderByDisplayNameMatch adds an ORDER BY clause that prioritizes channels whose DisplayName matches the search term,
+// then sorts alphabetically by DisplayName.
+func orderByDisplayNameMatch(query sq.SelectBuilder, term string) sq.SelectBuilder {
+	sanitizedTerm := sanitizeSearchTerm(term, "*")
+	if sanitizedTerm == "" {
+		return query.OrderBy("c.DisplayName")
+	}
+
+	likeTerm := wildcardSearchTerm(sanitizedTerm)
+	return query.OrderByClause("CASE WHEN LOWER(c.DisplayName) LIKE LOWER(?) ESCAPE '*' THEN 0 ELSE 1 END, c.DisplayName", likeTerm)
 }
 
 func (s SqlChannelStore) searchGroupChannelsQuery(userId, term string) sq.SelectBuilder {
@@ -4161,6 +4201,7 @@ func (s SqlChannelStore) SetShared(channelId string, shared bool) error {
 	squery, args, err := s.getQueryBuilder().
 		Update("Channels").
 		Set("Shared", shared).
+		Set("UpdateAt", model.GetMillis()).
 		Where(sq.Eq{"Id": channelId}).
 		ToSql()
 	if err != nil {
