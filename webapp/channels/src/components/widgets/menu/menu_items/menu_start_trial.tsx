@@ -23,7 +23,7 @@ const FreeVersionBadge = styled.div`
      margin-bottom: 6px;
      background: rgba(var(--center-channel-color-rgb), 0.08);
      color: rgba(var(--center-channel-color-rgb), 0.75);
-     font-family: 'Open Sans', sans-serif;
+     font-family: 'Inter', sans-serif;
      font-size: 10px;
      font-weight: 600;
      letter-spacing: 0.025em;

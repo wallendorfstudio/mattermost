@@ -2,6 +2,7 @@
 // See LICENSE.txt for license information.
 
 @use 'utils/mixins';
+@use 'utils/variables';
 
 .header-footer-route {
     position: relative;
@@ -18,10 +19,7 @@
         width: 100%;
         height: 100vh;
         flex-flow: column;
-        background-image: url("images/admin-onboarding-background.jpg");
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
+        background-color: variables.$bg--gray;
         // MM-45313 - Hack for issue in iOS Safari with scrolling
         -webkit-overflow-scrolling: touch;
         overflow-y: auto;
