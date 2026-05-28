@@ -71,16 +71,21 @@
 
                 &.with-brand-image {
                     align-self: center;
+                    align-items: center;
 
                     .login-body-message-subtitle,
                     .login-body-custom-branding-markdown {
-                        text-align: left;
+                        text-align: center;
                     }
                 }
 
                 .login-body-custom-branding-image {
-                    max-height: 240px;
-                    align-self: self-start;
+                    max-width: 308px;
+                    max-height: 123px;
+                    width: auto;
+                    height: auto;
+                    object-fit: contain;
+                    align-self: center;
                     border-radius: 8px;
                     margin-bottom: 28px;
                 }

@@ -30,16 +30,14 @@ const Header = ({alternateLink, backButtonURL, onBackButtonClick}: HeaderProps) 
     if (license.IsLicensed === 'false') {
         freeBanner = <><Logo/><span className='freeBadge'>{'TEAM EDITION'}</span></>;
     } else if (license.SkuShortName === LicenseSkus.Entry) {
-        freeBanner = <><Logo/><span className='freeBadge'>{'ENTRY EDITION'}</span></>;
+        freeBanner = <><Logo/><span className='freeBadge'>{'CHAT'}</span></>;
     }
 
     let title: React.ReactNode = SiteName;
-    if (title === 'Mattermost') {
-        if (freeBanner) {
-            title = '';
-        } else {
-            title = <Logo/>;
-        }
+    if (freeBanner) {
+        title = '';
+    } else if (title === 'Mattermost') {
+        title = <Logo/>;
     }
 
     return (

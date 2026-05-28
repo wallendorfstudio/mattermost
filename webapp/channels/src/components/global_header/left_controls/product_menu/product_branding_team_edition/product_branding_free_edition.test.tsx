@@ -11,7 +11,7 @@ import ProductBrandingFreeEdition from './product_branding_free_edition';
 describe('ProductBrandingFreeEdition', () => {
     const baseProps = {};
 
-    test('should show ENTRY EDITION for Entry license', () => {
+    test('should show CHAT for Entry license', () => {
         const state = {
             entities: {
                 general: {
@@ -28,7 +28,7 @@ describe('ProductBrandingFreeEdition', () => {
             state,
         );
 
-        expect(screen.getByText('ENTRY EDITION')).toBeInTheDocument();
+        expect(screen.getByText('CHAT')).toBeInTheDocument();
         const logoElement = container.querySelector('svg');
         expect(logoElement).toBeInTheDocument();
     });
@@ -73,7 +73,7 @@ describe('ProductBrandingFreeEdition', () => {
         );
 
         // Should not show any edition badge
-        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
+        expect(screen.queryByText('CHAT')).not.toBeInTheDocument();
         expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
         expect(screen.queryByText('PROFESSIONAL EDITION')).not.toBeInTheDocument();
     });
@@ -96,7 +96,7 @@ describe('ProductBrandingFreeEdition', () => {
         );
 
         // Should not show any edition badge
-        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
+        expect(screen.queryByText('CHAT')).not.toBeInTheDocument();
         expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
         expect(screen.queryByText('ENTERPRISE EDITION')).not.toBeInTheDocument();
     });
@@ -116,7 +116,7 @@ describe('ProductBrandingFreeEdition', () => {
         );
 
         // Should not show any edition badge when license object is empty
-        expect(screen.queryByText('ENTRY EDITION')).not.toBeInTheDocument();
+        expect(screen.queryByText('CHAT')).not.toBeInTheDocument();
         expect(screen.queryByText('TEAM EDITION')).not.toBeInTheDocument();
     });
 });

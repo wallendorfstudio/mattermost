@@ -59,6 +59,11 @@ body {
     background: var(--background-color);
 }
 
+/* Spinner markup removed; keep animation container from affecting layout */
+.LoadingAnimation {
+    display: none;
+}
+
 .LoadingScreen--loaded {
     opacity: 0;
     transition: opacity 400ms 0ms ease-in, visibility 400ms 0ms step-end;

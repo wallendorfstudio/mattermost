@@ -8,7 +8,7 @@ const ANIMATION_CLASS_FOR_MATTERMOST_LOGO_HIDE = 'LoadingAnimation__compass-shri
 const ANIMATION_CLASS_FOR_COMPLETE_LOADER_HIDE = 'LoadingAnimation__shrink';
 
 const DESTROY_DELAY_AFTER_ANIMATION_END = 1000;
-const MINIMUM_LOADING_TIME = 1000; // Minimum time to show the loading screen (in ms)
+const MINIMUM_LOADING_TIME = 0;
 
 const LOADING_CLASS_FOR_SCREEN = 'LoadingScreen';
 const LOADING_COMPLETE_CLASS_FOR_SCREEN = 'LoadingScreen LoadingScreen--loaded';
@@ -42,11 +42,8 @@ export class InitialLoadingScreenClass {
             return;
         }
 
-        this.addAnimationEndListener();
-
-        // Starting automatically in the constructor instead of waiting for call from the code base
-        // as per the latest UX recommendation
-        this.start();
+        // Skip the full-page splash on web; app shell loads without compass/pattern overlay.
+        this.destroy();
     }
 
     private handleAnimationEndEvent(event: AnimationEvent) {

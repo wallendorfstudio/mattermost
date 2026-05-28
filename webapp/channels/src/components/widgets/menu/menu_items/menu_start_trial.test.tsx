@@ -41,7 +41,7 @@ describe('components/widgets/menu/menu_items/menu_start_trial', () => {
         expect(wrapper.text()).toContain('This is the free');
     });
 
-    test('should render ENTRY EDITION for Entry license', () => {
+    test('should render CHAT for Entry license', () => {
         const state = {
             entities: {
                 users: {
@@ -61,7 +61,7 @@ describe('components/widgets/menu/menu_items/menu_start_trial', () => {
         const wrapper = mountWithIntl(<reactRedux.Provider store={store}><MenuStartTrial id='startTrial'/></reactRedux.Provider>);
 
         expect(wrapper.find('.editionText').exists()).toBe(true);
-        expect(wrapper.text()).toContain('ENTRY EDITION');
+        expect(wrapper.text()).toContain('CHAT');
         expect(wrapper.text()).toContain('Entry offers Enterprise Advance capabilities');
     });
 

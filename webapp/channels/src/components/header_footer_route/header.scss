@@ -42,8 +42,10 @@
             }
 
             svg {
-                width: 170px;
+                width: 220px;
                 fill: var(--center-channel-color);
+                position: relative;
+                top: 3px;
             }
 
             .freeBadge {
